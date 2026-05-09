@@ -1,0 +1,166 @@
+!! Building configuration
+!! IOS XR Configuration 24.4.1
+!! Last configuration change at Fri May  1 14:56:05 2026 by clab
+!
+hostname p01
+clock timezone JST Asia/Tokyo
+service timestamps log datetime localtime usec show-timezone year
+service timestamps debug datetime localtime usec show-timezone year
+username clab
+ group root-lr
+ group cisco-support
+ secret 10 $6$cv7ED1S0on.xAD1.$boSslIT7ubFTiyAVNITjfw8eiSBgA1bOf7zG37aYK7JpbYhn8PlpeGuDnTWqbStXvgWrq4AuvPMuK7ZY.TNu21
+!
+grpc
+ port 9339
+ no-tls
+ address-family dual
+!
+vrf MGMT
+!
+line default
+ transport input ssh
+!
+netconf-yang agent
+ ssh
+!
+interface Loopback0
+ ipv4 address 3.3.3.3 255.255.255.255
+!
+interface MgmtEth0/RP0/CPU0/0
+ vrf MGMT
+ ipv4 address 172.20.20.2 255.255.255.0
+ ipv6 address 3fff:172:20:20::2/64
+!
+interface GigabitEthernet0/0/0/0
+ description pe01_Gi0/0/0/0
+ ipv4 address 10.0.0.1 255.255.255.254
+!
+interface GigabitEthernet0/0/0/1
+ description pe02_Gi0/0/0/0
+ ipv4 address 10.0.0.5 255.255.255.254
+!
+interface GigabitEthernet0/0/0/2
+ description p02_Gi0/0/0/2
+ ipv4 address 10.0.0.8 255.255.255.254
+!
+interface GigabitEthernet0/0/0/3
+ description rr01_Gi0/0/0/0
+ ipv4 address 10.0.0.10 255.255.255.254
+!
+router static
+ vrf MGMT
+  address-family ipv4 unicast
+   0.0.0.0/0 MgmtEth0/RP0/CPU0/0 172.20.20.1
+  !
+  address-family ipv6 unicast
+   ::/0 MgmtEth0/RP0/CPU0/0 3fff:172:20:20::1
+  !
+ !
+!
+router isis MAIN
+ is-type level-2-only
+ net 49.0001.0000.0000.0003.00
+ distribute link-state level 2
+ log adjacency changes
+ log pdu drops
+ affinity-map RED bit-position 10
+ affinity-map BLUE bit-position 11
+ address-family ipv4 unicast
+  metric-style wide
+  metric-style wide level 2
+  mpls traffic-eng level-2-only
+  mpls traffic-eng router-id Loopback0
+  router-id Loopback0
+  segment-routing mpls
+ !
+ flex-algo 128
+  advertise-definition
+  affinity include-all RED
+ !
+ flex-algo 129
+  advertise-definition
+  affinity include-all BLUE
+ !
+ interface Loopback0
+  passive
+  address-family ipv4 unicast
+   prefix-sid index 3
+   prefix-sid algorithm 128 index 1103
+   prefix-sid algorithm 129 index 1113
+  !
+ !
+ interface GigabitEthernet0/0/0/0
+  affinity flex-algo RED
+  point-to-point
+  address-family ipv4 unicast
+   metric 100
+  !
+ !
+ interface GigabitEthernet0/0/0/1
+  affinity flex-algo RED BLUE
+  point-to-point
+  address-family ipv4 unicast
+   metric 100
+  !
+ !
+ interface GigabitEthernet0/0/0/2
+  affinity flex-algo BLUE
+  point-to-point
+  address-family ipv4 unicast
+   metric 1000
+  !
+ !
+ interface GigabitEthernet0/0/0/3
+  point-to-point
+  address-family ipv4 unicast
+   metric 1000
+  !
+ !
+!
+router bgp 64512
+ timers bgp 10 30
+ bgp router-id 3.3.3.3
+ address-family vpnv4 unicast
+ !
+ neighbor 9.9.9.9
+  remote-as 64512
+  description rr01
+  update-source Loopback0
+  address-family vpnv4 unicast
+  !
+ !
+!
+mpls oam
+!
+segment-routing
+ traffic-eng
+  interface GigabitEthernet0/0/0/0
+   affinity
+    name RED
+    name WHITE
+   !
+  !
+  interface GigabitEthernet0/0/0/1
+   affinity
+    name RED
+    name BLUE
+    name WHITE
+   !
+  !
+  interface GigabitEthernet0/0/0/2
+   affinity
+    name BLUE
+    name WHITE
+   !
+  !
+  affinity-map
+   name RED bit-position 10
+   name BLUE bit-position 11
+   name WHITE bit-position 0
+  !
+ !
+!
+ssh server v2
+ssh server netconf vrf default
+end

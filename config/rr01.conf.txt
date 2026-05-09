@@ -1,0 +1,115 @@
+!! Building configuration
+!! IOS XR Configuration 24.4.1
+!! Last configuration change at Fri May  1 08:01:42 2026 by ZTP
+!
+hostname rr01
+clock timezone JST Asia/Tokyo
+service timestamps log datetime localtime usec show-timezone year
+service timestamps debug datetime localtime usec show-timezone year
+username clab
+ group root-lr
+ group cisco-support
+ secret 10 $6$Zom640hAWVXM640.$M9.git2JFVAjZm06FkbUkhOnLXVvMjijyjZ6qXTJ/cvYbYDU9Hdqkm4bi69TidIfF.HpvFX.SjJAct3frn6Wt/
+!
+grpc
+ port 9339
+ no-tls
+ address-family dual
+!
+vrf MGMT
+!
+line default
+ transport input ssh
+!
+netconf-yang agent
+ ssh
+!
+interface Loopback0
+ ipv4 address 9.9.9.9 255.255.255.255
+!
+interface MgmtEth0/RP0/CPU0/0
+ vrf MGMT
+ ipv4 address 172.20.20.9 255.255.255.0
+ ipv6 address 3fff:172:20:20::9/64
+!
+interface GigabitEthernet0/0/0/0
+ description p01_Gi0/0/0/3
+ ipv4 address 10.0.0.11 255.255.255.254
+!
+interface GigabitEthernet0/0/0/1
+ description p02_Gi0/0/0/3
+ ipv4 address 10.0.0.13 255.255.255.254
+!
+router static
+ vrf MGMT
+  address-family ipv4 unicast
+   0.0.0.0/0 MgmtEth0/RP0/CPU0/0 172.20.20.1
+  !
+  address-family ipv6 unicast
+   ::/0 MgmtEth0/RP0/CPU0/0 3fff:172:20:20::1
+  !
+ !
+!
+router isis MAIN
+ is-type level-2-only
+ net 49.0001.0000.0000.0009.00
+ log adjacency changes
+ log pdu drops
+ address-family ipv4 unicast
+  metric-style wide
+  router-id Loopback0
+  segment-routing mpls
+ !
+ interface Loopback0
+  passive
+  address-family ipv4 unicast
+   prefix-sid index 9
+  !
+ !
+ interface GigabitEthernet0/0/0/0
+  point-to-point
+  address-family ipv4 unicast
+   metric 1000
+  !
+ !
+ interface GigabitEthernet0/0/0/1
+  point-to-point
+  address-family ipv4 unicast
+   metric 1000
+  !
+ !
+!
+router bgp 64512
+ timers bgp 10 30
+ bgp router-id 9.9.9.9
+ address-family vpnv4 unicast
+ !
+ neighbor-group ROUTE_REFRECTOR_CLIENT
+  remote-as 64512
+  update-source Loopback0
+  address-family vpnv4 unicast
+   route-reflector-client
+  !
+ !
+ neighbor 1.1.1.1
+  use neighbor-group ROUTE_REFRECTOR_CLIENT
+  description pe01
+ !
+ neighbor 2.2.2.2
+  use neighbor-group ROUTE_REFRECTOR_CLIENT
+  description pe02
+ !
+ neighbor 3.3.3.3
+  use neighbor-group ROUTE_REFRECTOR_CLIENT
+  description p01
+ !
+ neighbor 4.4.4.4
+  use neighbor-group ROUTE_REFRECTOR_CLIENT
+  description p02
+ !
+!
+mpls oam
+!
+ssh server v2
+ssh server netconf vrf default
+end

@@ -1,0 +1,52 @@
+name: lab11
+
+topology:
+  kinds:
+    cisco_xrd:
+      image: ios-xr/xrd-control-plane:24.4.1
+    linux:
+      image: alpine:latest
+
+  nodes:
+    pe01: { kind: cisco_xrd }
+    pe02: { kind: cisco_xrd }
+    p01: { kind: cisco_xrd }
+    p02: { kind: cisco_xrd }
+    rr01: { kind: cisco_xrd }
+    ws11:
+      kind: linux
+      exce:
+        - ip link add mgmt type vrf table 90
+        - ip link set dev mgmt up
+        - ip link set dev eth0 master mgmt
+    ws12:
+      kind: linux
+      exce:
+        - ip link add mgmt type vrf table 90
+        - ip link set dev mgmt up
+        - ip link set dev eth0 master mgmt
+    ws21:
+      kind: linux
+      exce:
+        - ip link add mgmt type vrf table 90
+        - ip link set dev mgmt up
+        - ip link set dev eth0 master mgmt
+    ws22:
+      kind: linux
+      exce:
+        - ip link add mgmt type vrf table 90
+        - ip link set dev mgmt up
+        - ip link set dev eth0 master mgmt
+
+  links:
+    - endpoints: ["pe01:Gi0-0-0-0", "p01:Gi0-0-0-0"]
+    - endpoints: ["pe02:Gi0-0-0-0", "p01:Gi0-0-0-1"]
+    - endpoints: ["pe01:Gi0-0-0-1", "p02:Gi0-0-0-0"]
+    - endpoints: ["pe02:Gi0-0-0-1", "p02:Gi0-0-0-1"]
+    - endpoints: ["p01:Gi0-0-0-2", "p02:Gi0-0-0-2"]
+    - endpoints: ["p01:Gi0-0-0-3", "rr01:Gi0-0-0-0"]
+    - endpoints: ["p02:Gi0-0-0-3", "rr01:Gi0-0-0-1"]
+    - endpoints: ["pe01:Gi0-0-0-2", "ws11:eth1"]
+    - endpoints: ["pe01:Gi0-0-0-3", "ws21:eth1"]
+    - endpoints: ["pe02:Gi0-0-0-2", "ws12:eth1"]
+    - endpoints: ["pe02:Gi0-0-0-3", "ws22:eth1"]

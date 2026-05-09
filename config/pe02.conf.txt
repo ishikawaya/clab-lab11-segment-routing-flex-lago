@@ -1,0 +1,240 @@
+!! Building configuration
+!! IOS XR Configuration 24.4.1
+!! Last configuration change at Fri May  1 15:21:02 2026 by clab
+!
+hostname pe02
+clock timezone JST Asia/Tokyo
+service timestamps log datetime localtime usec show-timezone year
+service timestamps debug datetime localtime usec show-timezone year
+username clab
+ group root-lr
+ group cisco-support
+ secret 10 $6$L8Nxr/GKzRpT5r/.$BLmrsQl8h1DiEy7Mf05A5nrc4lbbP7yNjdzuzN7Hp5WRr63mHPx/36UH1wfefCpn1Zf.Vi5X/YNVygYkVcFgX1
+!
+grpc
+ port 9339
+ no-tls
+ address-family dual
+!
+vrf MGMT
+!
+vrf CUSTOMER01
+ address-family ipv4 unicast
+  import route-target
+   64512:10
+  !
+  export route-target
+   64512:10
+  !
+ !
+!
+vrf CUSTOMER02
+ address-family ipv4 unicast
+  import route-target
+   64512:20
+  !
+  export route-target
+   64512:20
+  !
+ !
+!
+line default
+ transport input ssh
+!
+netconf-yang agent
+ ssh
+!
+interface Loopback0
+ ipv4 address 2.2.2.2 255.255.255.255
+!
+interface Loopback10
+ vrf CUSTOMER01
+ ipv4 address 172.16.10.2 255.255.255.255
+!
+interface Loopback20
+ vrf CUSTOMER02
+ ipv4 address 172.16.20.2 255.255.255.255
+!
+interface MgmtEth0/RP0/CPU0/0
+ vrf MGMT
+ ipv4 address 172.20.20.3 255.255.255.0
+ ipv6 address 3fff:172:20:20::3/64
+!
+interface GigabitEthernet0/0/0/0
+ description p01_Gi0/0/0/1
+ ipv4 address 10.0.0.4 255.255.255.254
+!
+interface GigabitEthernet0/0/0/1
+ description p02_Gi0/0/0/1
+ ipv4 address 10.0.0.6 255.255.255.254
+!
+interface GigabitEthernet0/0/0/2
+ description ws12_eth1
+ vrf CUSTOMER01
+ ipv4 address 192.168.10.2 255.255.255.254
+!
+interface GigabitEthernet0/0/0/3
+ description ws22_eth1
+ vrf CUSTOMER02
+ ipv4 address 192.168.20.2 255.255.255.254
+!
+router static
+ vrf MGMT
+  address-family ipv4 unicast
+   0.0.0.0/0 MgmtEth0/RP0/CPU0/0 172.20.20.1
+  !
+  address-family ipv6 unicast
+   ::/0 MgmtEth0/RP0/CPU0/0 3fff:172:20:20::1
+  !
+ !
+!
+router isis MAIN
+ is-type level-2-only
+ net 49.0001.0000.0000.0002.00
+ distribute link-state level 2
+ log adjacency changes
+ log pdu drops
+ affinity-map RED bit-position 10
+ affinity-map BLUE bit-position 11
+ affinity-map GREEN bit-position 20
+ affinity-map PURPLE bit-position 21
+ address-family ipv4 unicast
+  metric-style wide
+  metric-style wide level 2
+  mpls traffic-eng level-2-only
+  mpls traffic-eng router-id Loopback0
+  router-id Loopback0
+  segment-routing mpls
+ !
+ flex-algo 128
+  advertise-definition
+  affinity include-all RED
+ !
+ flex-algo 129
+  advertise-definition
+  affinity include-all BLUE
+ !
+ flex-algo 130
+  advertise-definition
+  affinity include-all GREEN
+ !
+ flex-algo 131
+  advertise-definition
+  affinity include-all PURPLE
+ !
+ interface Loopback0
+  passive
+  address-family ipv4 unicast
+   prefix-sid index 2
+   prefix-sid algorithm 128 index 1102
+   prefix-sid algorithm 129 index 1112
+   prefix-sid algorithm 130 index 1202
+   prefix-sid algorithm 131 index 1212
+  !
+ !
+ interface GigabitEthernet0/0/0/0
+  affinity flex-algo RED BLUE
+  point-to-point
+  address-family ipv4 unicast
+   metric 100
+  !
+ !
+ interface GigabitEthernet0/0/0/1
+  affinity flex-algo GREEN PURPLE
+  point-to-point
+  address-family ipv4 unicast
+   metric 100
+  !
+ !
+!
+router bgp 64512
+ timers bgp 10 30
+ bgp router-id 2.2.2.2
+ address-family vpnv4 unicast
+ !
+ neighbor 9.9.9.9
+  remote-as 64512
+  description rr01
+  update-source Loopback0
+  address-family vpnv4 unicast
+  !
+ !
+ vrf CUSTOMER01
+  rd 64512:10
+  bgp router-id 172.16.10.2
+  address-family ipv4 unicast
+   redistribute connected
+  !
+ !
+ vrf CUSTOMER02
+  rd 64512:20
+  bgp router-id 172.16.20.2
+  address-family ipv4 unicast
+   redistribute connected
+  !
+ !
+!
+mpls oam
+!
+segment-routing
+ traffic-eng
+  interface GigabitEthernet0/0/0/0
+   affinity
+    name RED
+    name BLUE
+    name WHITE
+   !
+  !
+  !interface GigabitEthernet0/0/0/0
+  !affinity
+  interface GigabitEthernet0/0/0/1
+   affinity
+    name GREEN
+    name WHITE
+    name PURPLE
+   !
+  !
+  policy RED_BLUE_FALLBACK
+   color 10 end-point ipv4 1.1.1.1
+   candidate-paths
+    preference 100
+     dynamic
+     !
+     constraints
+      segments
+       sid-algorithm 0
+      !
+     !
+    !
+    preference 190
+     dynamic
+     !
+     constraints
+      segments
+       sid-algorithm 129
+      !
+     !
+    !
+    preference 200
+     dynamic
+     !
+     constraints
+      segments
+       sid-algorithm 128
+      !
+     !
+    !
+   !
+  !
+  affinity-map
+   name RED bit-position 10
+   name BLUE bit-position 11
+   name GREEN bit-position 20
+   name WHITE bit-position 0
+   name PURPLE bit-position 21
+  !
+ !
+!
+ssh server v2
+ssh server netconf vrf default
+end
